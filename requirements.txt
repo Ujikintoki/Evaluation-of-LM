@@ -1,0 +1,16 @@
+# Core Deep Learning Framework
+torch>=2.2.0
+
+# Hugging Face Ecosystem
+transformers>=4.38.0
+datasets>=2.18.0
+accelerate>=0.27.0
+evaluate>=0.4.0
+
+# Metrics and Data Processing
+scikit-learn>=1.4.0
+pandas>=2.2.0
+numpy>=1.26.0
+
+# Utility
+tqdm>=4.66.0

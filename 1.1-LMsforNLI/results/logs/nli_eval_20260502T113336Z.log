@@ -1,0 +1,3 @@
+2026-05-02 19:33:36 | INFO     | test_module:setup_logger:115 | Log file created at /Users/lichenhao/python/Evaluation-of-LM/1.1-LMsforNLI/results/logs/nli_eval_20260502T113336Z.log
+2026-05-02 19:33:36 | INFO     | test_module:<module>:15 | Hello from test
+2026-05-02 19:33:36 | WARNING  | test_module:<module>:16 | This is a warning
