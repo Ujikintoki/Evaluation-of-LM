@@ -17,10 +17,9 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Dict, List, Optional, Union
 
+from config import DATASET_FILES, FINETUNE_CONFIG, NLI_LABEL2ID
 from datasets import Dataset, DatasetDict, load_dataset
 from transformers import PreTrainedTokenizer
-
-from config import DATASET_FILES, FINETUNE_CONFIG, NLI_LABEL2ID
 
 # ---------------------------------------------------------------------------
 # Prompt template - kept as a module constant for consistency
@@ -126,6 +125,50 @@ class NLIDataHandler:
         return self.dataset
 
     # ------------------------------------------------------------------
+    # Hallucination detection data loading
+    # ------------------------------------------------------------------
+    def load_hallucination_data(
+        self, split: str = "evaluation"
+    ) -> List[Dict[str, Union[str, int]]]:
+        """Load and transform the WikiBio-GPT3 hallucination dataset.
+
+        Downloads the ``potsawee/wiki_bio_gpt3_hallucination`` dataset and
+        extracts the requested split (default ``"evaluation"``).  For every entry,
+        ``wiki_bio_text`` is treated as the global premise, and each
+        generated sentence inside ``gpt3_sentences`` becomes an individual
+        hypothesis.
+
+        The corresponding annotation (0.0, 0.5, or 1.0) is mapped to a
+        binary factual label:
+
+        * **0.0** (Accurate / Factual) → ``0``
+        * **0.5** (Minor Inaccuracy)  → ``1`` (Non-Factual)
+        * **1.0** (Major Inaccuracy)  → ``1`` (Non-Factual)
+
+        Args:
+            split: The dataset split to load (default ``"evaluation"``).
+
+        Returns:
+            A list of dicts with keys ``premise`` (str), ``hypothesis``
+            (str), and ``label`` (int, 0 for factual, 1 for non-factual).
+        """
+        dataset = load_dataset("potsawee/wiki_bio_gpt3_hallucination", split=split)
+
+        records: List[Dict[str, Union[str, int]]] = []
+        for entry in dataset:
+            premise: str = entry["wiki_bio_text"]
+            for sentence, ann in zip(entry["gpt3_sentences"], entry["annotation"]):
+                label: int = 0 if ann == 0.0 else 1  # 0.5 or 1.0 → non-factual
+                records.append(
+                    {
+                        "premise": premise,
+                        "hypothesis": sentence,
+                        "label": label,
+                    }
+                )
+        return records
+
+    # ------------------------------------------------------------------
     # Paradigm A - Zero-shot Prompting
     # ------------------------------------------------------------------
 
@@ -205,9 +248,7 @@ class NLIDataHandler:
                 padding="max_length",
                 max_length=max_length,
             )
-            tokenized["label"] = [
-                NLI_LABEL2ID[lbl] for lbl in examples["label"]
-            ]
+            tokenized["label"] = [NLI_LABEL2ID[lbl] for lbl in examples["label"]]
             return tokenized
 
         # Columns to drop after tokenization

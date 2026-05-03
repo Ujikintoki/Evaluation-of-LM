@@ -33,6 +33,7 @@ from data_handler import NLIDataHandler
 from error_analysis import NLIErrorAnalyzer
 from evaluator_finetuning import RobertaFinetuneEvaluator
 from evaluator_prompting import FlanT5PromptEvaluator
+from hallucination_evaluator import HallucinationEvaluator
 from sklearn.metrics import accuracy_score
 from utils import set_seed, setup_logger
 
@@ -50,17 +51,25 @@ def _parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
     Returns
     -------
     argparse.Namespace
-        Parsed arguments with attributes ``mode`` and ``split``.
+        Parsed arguments with attributes ``task``, ``mode``, ``split``,
+        and ``skip_train``.
     """
     parser = argparse.ArgumentParser(
         description="CSIT5520 NLI Evaluation Pipeline",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument(
+        "--task",
+        choices=["nli", "hallucination"],
+        default="nli",
+        help="High‑level task to run: NLI evaluation or Hallucination "
+        "detection (default: %(default)s).",
+    )
+    parser.add_argument(
         "--mode",
         choices=["prompting", "finetuning", "all"],
         default="all",
-        help="Evaluation paradigm (default: %(default)s).",
+        help="Evaluation paradigm (default: %(default)s). Only used when --task nli.",
     )
     parser.add_argument(
         "--split",
@@ -169,7 +178,7 @@ def run_finetuning(splits: List[str], skip_train: bool = False) -> None:
 
 
 def main(argv: Optional[Sequence[str]] = None) -> None:
-    """Orchestrate the NLI evaluation pipeline.
+    """Orchestrate the evaluation pipeline (NLI or Hallucination detection).
 
     Parameters
     ----------
@@ -181,14 +190,25 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
     # Global determinism
     set_seed(RUNTIME_CONFIG.seed)
 
-    splits = _resolve_splits(args.split)
-    logger.info("Selected splits: %s", splits)
+    # ------------------------------------------------------------------
+    # Task routing
+    # ------------------------------------------------------------------
+    if args.task == "nli":
+        logger.info("Task: NLI evaluation")
+        splits = _resolve_splits(args.split)
+        logger.info("Selected splits: %s", splits)
 
-    if args.mode in ("prompting", "all"):
-        run_prompting(splits)
+        if args.mode in ("prompting", "all"):
+            run_prompting(splits)
 
-    if args.mode in ("finetuning", "all"):
-        run_finetuning(splits, skip_train=args.skip_train)
+        if args.mode in ("finetuning", "all"):
+            run_finetuning(splits, skip_train=args.skip_train)
+
+    elif args.task == "hallucination":
+        logger.info("Task: Hallucination detection")
+        handler = NLIDataHandler()
+        evaluator = HallucinationEvaluator(data_handler=handler)
+        evaluator.run_evaluation()
 
     logger.info("Pipeline finished.")
 
