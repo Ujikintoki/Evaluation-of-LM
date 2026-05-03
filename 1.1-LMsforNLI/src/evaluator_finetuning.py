@@ -17,7 +17,6 @@ import numpy as np
 from config import (
     FINETUNE_CONFIG,
     NLI_LABEL2ID,
-    NLI_ID2LABEL,
     RESULTDIRS,
     RUNTIME_CONFIG,
     ensure_directories,
@@ -35,7 +34,7 @@ from transformers import (
     Trainer,
     TrainingArguments,
 )
-from utils import set_seed, setup_logger
+from utils import get_device, set_seed, setup_logger
 
 logger = setup_logger(__name__)
 
@@ -91,12 +90,15 @@ class RobertaFinetuneEvaluator:
             self.tokenizer.pad_token = self.tokenizer.eos_token
             logger.info("Set pad_token to eos_token (%s)", self.tokenizer.pad_token)
 
+        # Determine device and move model to it
+        self.device = get_device(verbose=True)
+        logger.info("Device: %s", self.device)
+
         logger.info("Loading model for sequence classification (%d labels)", 3)
         self.model = AutoModelForSequenceClassification.from_pretrained(
             model_name,
             num_labels=3,
-            label2id=NLI_LABEL2ID,
-            id2label=NLI_ID2LABEL,
+            ignore_mismatched_sizes=True,
         )
         self.model.config.pad_token_id = self.tokenizer.pad_token_id
 
@@ -175,13 +177,12 @@ class RobertaFinetuneEvaluator:
 
         training_args = TrainingArguments(
             output_dir=str(RESULTDIRS.checkpoints),
-            logging_dir=str(RESULTDIRS.logs),
             run_name="roberta-nli",
             # --- Learning rate & optimisation ---
             learning_rate=FINETUNE_CONFIG.learning_rate,
             weight_decay=FINETUNE_CONFIG.weight_decay,
             adam_epsilon=FINETUNE_CONFIG.adam_epsilon,
-            warmup_ratio=FINETUNE_CONFIG.warmup_ratio,
+            warmup_steps=0,
             optim="adamw_torch",
             # --- Batch sizes ---
             per_device_train_batch_size=FINETUNE_CONFIG.batch_size,
@@ -201,7 +202,6 @@ class RobertaFinetuneEvaluator:
             # --- Reproducibility & hardware ---
             seed=RUNTIME_CONFIG.seed,
             data_seed=RUNTIME_CONFIG.seed,
-            use_mps_device=True,          # explicit Apple Silicon support
             # --- Misc ---
             disable_tqdm=False,
             report_to=["none"],  # no external logging (wandb, etc.)
@@ -213,7 +213,7 @@ class RobertaFinetuneEvaluator:
             train_dataset=train_ds,
             eval_dataset=eval_ds,
             compute_metrics=self.compute_metrics,
-            tokenizer=self.tokenizer,
+            processing_class=self.tokenizer,
         )
 
     # ------------------------------------------------------------------
@@ -261,7 +261,7 @@ class RobertaFinetuneEvaluator:
             # trainer instantiated with the current model.
             trainer = Trainer(
                 model=self.model,
-                tokenizer=self.tokenizer,
+                processing_class=self.tokenizer,
                 compute_metrics=self.compute_metrics,
             )
         else:

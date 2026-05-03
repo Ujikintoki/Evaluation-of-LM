@@ -1,5 +1,37 @@
+# OS & IDE
 .DS_Store
+.continue
+.idea/
+.vscode/
+
+# Python & Virtual Environments
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
 .env
-.continue
+venv/
+.venv/
+env/
+.pytest_cache/
+
+# Deep Learning Project Specifics
+# 排除本地数据集和下载的模型缓存
+data/
+models/
+
+# 排除训练输出与缓存
+outputs/
+tmp_trainer/
+results/checkpoints/
+
+# 排除大型二进制权重与状态文件
+*.safetensors
+*.pt
+*.pth
+*.bin
+
+# 排除实验追踪记录与日志
+wandb/
+*.log
+results/logs/

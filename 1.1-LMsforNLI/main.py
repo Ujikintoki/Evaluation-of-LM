@@ -26,16 +26,14 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent / "src"))
 
 import argparse
-import logging
-from dataclasses import asdict
 from typing import List, Optional, Sequence
 
-from sklearn.metrics import accuracy_score
-
-from config import RUNTIME_CONFIG
+from config import RESULTDIRS, RUNTIME_CONFIG
 from data_handler import NLIDataHandler
+from error_analysis import NLIErrorAnalyzer
 from evaluator_finetuning import RobertaFinetuneEvaluator
 from evaluator_prompting import FlanT5PromptEvaluator
+from sklearn.metrics import accuracy_score
 from utils import set_seed, setup_logger
 
 logger = setup_logger(__name__)
@@ -70,6 +68,13 @@ def _parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
         default="both",
         help="Data split(s) to evaluate (default: %(default)s).",
     )
+    parser.add_argument(
+        "--skip_train",
+        action="store_true",
+        default=False,
+        help="Skip fine‑tuning and use the existing checkpoint. "
+        "Ignored for prompting mode.",
+    )
     return parser.parse_args(argv)
 
 
@@ -83,6 +88,7 @@ def _resolve_splits(split_arg: str) -> List[str]:
 # ---------------------------------------------------------------------------
 # Evaluation helpers
 # ---------------------------------------------------------------------------
+
 
 def run_prompting(splits: List[str]) -> None:
     """Evaluate with zero‑shot FLAN‑T5 prompting.
@@ -100,43 +106,67 @@ def run_prompting(splits: List[str]) -> None:
         y_true = evaluator.get_ground_truth(split)
         y_pred = evaluator.evaluate(split)
         acc = accuracy_score(y_true, y_pred)
+
+        # ------------------------------------------------------------------
+        # Qualitative error analysis — export misclassified examples
+        # ------------------------------------------------------------------
+        analyzer = NLIErrorAnalyzer()
+        ds = handler.get_dataset(split)
+        error_path = RESULTDIRS.root / "errors" / f"prompting_{split}_errors.csv"
+        errors_df = analyzer.extract_and_export_errors(ds, y_pred, error_path)
         logger.info(
-            "[Prompting] Split: %-10s | Accuracy: %.4f",
+            "[Prompting] Split: %-10s | Accuracy: %.4f | %d errors → %s",
             split,
             acc,
+            len(errors_df),
+            error_path,
         )
 
 
-def run_finetuning(splits: List[str]) -> None:
+def run_finetuning(splits: List[str], skip_train: bool = False) -> None:
     """Fine‑tune RoBERTa and evaluate on the requested splits.
 
     Parameters
     ----------
     splits : list of str
         Names of the splits to evaluate after training.
+    skip_train : bool, optional
+        If ``True``, skip the training phase (default: ``False``).
     """
     logger.info("=== Paradigm B: Fine‑tuning (RoBERTa) ===")
     handler = NLIDataHandler()
     evaluator = RobertaFinetuneEvaluator(handler)
 
-    # Train (matched → train, mismatched → eval during training)
-    evaluator.train()
+    # Train only when explicitly requested (matched → train, mismatched → eval)
+    if not skip_train:
+        evaluator.train()
 
     # Evaluate on each requested split
     for split in splits:
         y_true = evaluator.get_ground_truth(split)
         y_pred = evaluator.evaluate(split)
         acc = accuracy_score(y_true, y_pred)
+
+        # ------------------------------------------------------------------
+        # Qualitative error analysis — export misclassified examples
+        # ------------------------------------------------------------------
+        analyzer = NLIErrorAnalyzer()
+        ds = handler.get_dataset(split)
+        error_path = RESULTDIRS.root / "errors" / f"finetuning_{split}_errors.csv"
+        errors_df = analyzer.extract_and_export_errors(ds, y_pred, error_path)
         logger.info(
-            "[Fine‑tuning] Split: %-10s | Accuracy: %.4f",
+            "[Fine‑tuning] Split: %-10s | Accuracy: %.4f | %d errors → %s",
             split,
             acc,
+            len(errors_df),
+            error_path,
         )
 
 
 # ---------------------------------------------------------------------------
 # Main entry point
 # ---------------------------------------------------------------------------
+
 
 def main(argv: Optional[Sequence[str]] = None) -> None:
     """Orchestrate the NLI evaluation pipeline.
@@ -158,7 +188,7 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
         run_prompting(splits)
 
     if args.mode in ("finetuning", "all"):
-        run_finetuning(splits)
+        run_finetuning(splits, skip_train=args.skip_train)
 
     logger.info("Pipeline finished.")
 
