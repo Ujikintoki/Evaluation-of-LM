@@ -25,7 +25,6 @@ PROJECT_ROOT: Path = Path(__file__).resolve().parent.parent
 @dataclass(frozen=True)
 class DataDirs:
     """Absolute paths to data folders."""
-
     raw: Path = PROJECT_ROOT / "data" / "raw"
     processed: Path = PROJECT_ROOT / "data" / "processed"
 
@@ -33,7 +32,6 @@ class DataDirs:
 @dataclass(frozen=True)
 class ResultDirs:
     """Absolute paths to results folders."""
-
     root: Path = PROJECT_ROOT / "results"
     checkpoints: Path = PROJECT_ROOT / "results" / "checkpoints"
     logs: Path = PROJECT_ROOT / "results" / "logs"
@@ -45,7 +43,6 @@ class ResultDirs:
 @dataclass(frozen=True)
 class DatasetFiles:
     """Absolute paths to the raw JSONL evaluation files."""
-
     matched: Path = PROJECT_ROOT / "data" / "raw" / "dev_matched_sampled-1.jsonl"
     mismatched: Path = PROJECT_ROOT / "data" / "raw" / "dev_mismatched_sampled-1.jsonl"
 
@@ -64,16 +61,19 @@ NLI_ID2LABEL: dict[int, str] = {idx: label for label, idx in NLI_LABEL2ID.items(
 @dataclass(frozen=True)
 class PromptingConfig:
     """Hyperparameters for the zero-shot prompting pipeline."""
-
     model_name: str = "google/flan-t5-base"
     max_seq_length: int = 512
     batch_size: int = 16
     num_workers: int = 2
 
-    # Verbalizer strings — the raw token(s) the model must produce.
-    verbalizer_entailment: str = "entailment"
-    verbalizer_neutral: str = "neutral"
-    verbalizer_contradiction: str = "contradiction"
+    # Verbalizer strings — single-token words the model must produce.
+    #  "Yes" (entailment), "Maybe" (neutral), "No" (contradiction) are all
+    #  single tokens in T5's SentencePiece vocabulary (ids: 2163, 3836, 465).
+    #  They are semantically aligned with NLI labels in FLAN instruction
+    #  tuning and follow the first-transition scoring protocol.
+    verbalizer_entailment: str = "Yes"
+    verbalizer_neutral: str = "Maybe"
+    verbalizer_contradiction: str = "No"
 
 
 # ---------------------------------------------------------------------------
@@ -82,10 +82,9 @@ class PromptingConfig:
 @dataclass(frozen=True)
 class FinetuningConfig:
     """Hyperparameters for the fine-tuning pipeline."""
-
     model_name: str = "roberta-base"
     max_seq_length: int = 256
-    batch_size: int = 16  # training batch size
+    batch_size: int = 16            # training batch size
     eval_batch_size: int = 32
     num_workers: int = 2
 
@@ -114,7 +113,6 @@ class FinetuningConfig:
 @dataclass(frozen=True)
 class RuntimeConfig:
     """Runtime behaviour that isn't specific to a single paradigm."""
-
     seed: int = 42
     deterministic: bool = True  # if True, enable PyTorch deterministic mode
 
