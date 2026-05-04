@@ -26,15 +26,20 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent / "src"))
 
 import argparse
+import json
+import os
+from datetime import datetime
 from typing import List, Optional, Sequence
 
+from sklearn.metrics import accuracy_score
+
 from config import RESULTDIRS, RUNTIME_CONFIG
-from data_handler import NLIDataHandler
+from data_handler import NLIDataHandler, load_crows_pairs
 from error_analysis import NLIErrorAnalyzer
 from evaluator_finetuning import RobertaFinetuneEvaluator
+from evaluator_masked import BiasEvaluator
 from evaluator_prompting import FlanT5PromptEvaluator
 from hallucination_evaluator import HallucinationEvaluator
-from sklearn.metrics import accuracy_score
 from utils import set_seed, setup_logger
 
 logger = setup_logger(__name__)
@@ -60,10 +65,10 @@ def _parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
     )
     parser.add_argument(
         "--task",
-        choices=["nli", "hallucination"],
+        choices=["nli", "hallucination", "bias"],
         default="nli",
-        help="High‑level task to run: NLI evaluation or Hallucination "
-        "detection (default: %(default)s).",
+        help="High‑level task to run: NLI evaluation, Hallucination "
+        "detection, or Bias evaluation (default: %(default)s).",
     )
     parser.add_argument(
         "--mode",
@@ -83,6 +88,12 @@ def _parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
         default=False,
         help="Skip fine‑tuning and use the existing checkpoint. "
         "Ignored for prompting mode.",
+    )
+    parser.add_argument(
+        "--bias_n_samples",
+        type=int,
+        default=80,
+        help="Number of CrowS-Pairs samples for bias evaluation (default: 80).",
     )
     return parser.parse_args(argv)
 
@@ -173,6 +184,109 @@ def run_finetuning(splits: List[str], skip_train: bool = False) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Bias evaluation task
+# ---------------------------------------------------------------------------
+
+
+def run_bias_evaluation(n_samples: int = 80) -> None:
+    """Evaluate social bias in Masked LMs using CrowS-Pairs & PLL.
+
+    Loads the CrowS-Pairs dataset, then for each model in the evaluation
+    set, computes the Pseudo-Log-Likelihood bias score, logs summary
+    statistics, and cleans up GPU/MPS memory before loading the next model.
+
+    Parameters
+    ----------
+    n_samples : int, optional
+        Number of CrowS-Pairs examples to sample (default: 80).
+    """
+    logger.info("=== Task C: Bias Evaluation (CrowS-Pairs + PLL) ===")
+
+    # ------------------------------------------------------------------
+    # 1. Load the CrowS-Pairs dataset
+    # ------------------------------------------------------------------
+    logger.info("Loading CrowS-Pairs dataset (n_samples=%d) ...", n_samples)
+    pairs = load_crows_pairs(
+        bias_type="socioeconomic status/occupation",
+        n_samples=n_samples,
+        seed=RUNTIME_CONFIG.seed,
+    )
+    logger.info("Loaded %d CrowS-Pairs examples.", len(pairs))
+
+    stereotypic_sentences = [p.sentence_stereo for p in pairs]
+    anti_stereotypic_sentences = [p.sentence_antistereo for p in pairs]
+
+    # ------------------------------------------------------------------
+    # 2. Models to evaluate
+    # ------------------------------------------------------------------
+    model_names = ["bert-base-uncased", "roberta-base", "microsoft/deberta-base"]
+
+    all_results: dict[str, dict[str, object]] = {}
+
+    for model_name in model_names:
+        logger.info("--- Evaluating %s ---", model_name)
+        try:
+            evaluator = BiasEvaluator(
+                model_name=model_name,
+                max_batch_size=32,
+            )
+            bias_score, detailed_results = evaluator.evaluate(
+                stereotypical_sentences=stereotypic_sentences,
+                anti_stereotypical_sentences=anti_stereotypic_sentences,
+            )
+            evaluator.cleanup()
+        except Exception as exc:
+            logger.error("Failed to evaluate %s: %s", model_name, exc, exc_info=True)
+            bias_score = None
+            detailed_results = []
+
+        # Log summary
+        if bias_score is not None:
+            n_stereo_preferred = sum(1 for r in detailed_results if r["stereo_higher"])
+            logger.info(
+                "[Bias] %-30s | Bias Score: %.2f%% (%d / %d pairs preferred stereotype)",
+                model_name,
+                bias_score,
+                n_stereo_preferred,
+                len(detailed_results),
+            )
+        else:
+            logger.warning("[Bias] %-30s | Evaluation FAILED", model_name)
+
+        # Store results for JSON export
+        all_results[model_name] = {
+            "bias_score": bias_score,
+            "n_pairs_evaluated": len(detailed_results),
+            "n_stereo_preferred": (
+                sum(1 for r in detailed_results if r["stereo_higher"])
+                if detailed_results
+                else None
+            ),
+            "detailed_results": detailed_results,
+        }
+
+    # ------------------------------------------------------------------
+    # 3. Aggregate to JSON
+    # ------------------------------------------------------------------
+    os.makedirs(str(RESULTDIRS.root / "bias"), exist_ok=True)
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    json_path = RESULTDIRS.root / "bias" / f"bias_results_{timestamp}.json"
+
+    # Prepare serializable summary (exclude full detailed_results for brevity)
+    summary = {}
+    for model_name, results in all_results.items():
+        summary[model_name] = {
+            "bias_score": results["bias_score"],
+            "n_pairs_evaluated": results["n_pairs_evaluated"],
+            "n_stereo_preferred": results["n_stereo_preferred"],
+        }
+
+    with open(json_path, "w", encoding="utf-8") as f:
+        json.dump(summary, f, indent=2, default=str)
+    logger.info("Bias evaluation results saved to %s", json_path)
+
+
+# ---------------------------------------------------------------------------
 # Main entry point
 # ---------------------------------------------------------------------------
 
@@ -203,6 +317,10 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
 
         if args.mode in ("finetuning", "all"):
             run_finetuning(splits, skip_train=args.skip_train)
+
+    elif args.task == "bias":
+        logger.info("Task: Bias evaluation")
+        run_bias_evaluation(n_samples=args.bias_n_samples)
 
     elif args.task == "hallucination":
         logger.info("Task: Hallucination detection")
