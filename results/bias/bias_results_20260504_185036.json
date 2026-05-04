@@ -1,0 +1,17 @@
+{
+  "bert-base-uncased": {
+    "bias_score": 63.74999999999999,
+    "n_pairs_evaluated": 80,
+    "n_stereo_preferred": 51
+  },
+  "roberta-base": {
+    "bias_score": 58.75,
+    "n_pairs_evaluated": 80,
+    "n_stereo_preferred": 47
+  },
+  "microsoft/deberta-base": {
+    "bias_score": 47.5,
+    "n_pairs_evaluated": 80,
+    "n_stereo_preferred": 38
+  }
+}
