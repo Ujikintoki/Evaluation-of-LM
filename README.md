@@ -33,29 +33,27 @@ entirely local (zero external API calls).
 
 ```
 Evaluation-of-LM/
-├── LMsforNLI/
-│   ├── data/
-│   │   ├── raw/
-│   │   │   ├── dev_matched_sampled-1.jsonl      # MultiNLI matched subset (2 500 ex.)
-│   │   │   └── dev_mismatched_sampled-1.jsonl   # MultiNLI mismatched subset (2 500 ex.)
-│   │   └── processed/                            # Reserved for preprocessed artefacts
-│   ├── results/
-│   │   ├── checkpoints/
-│   │   │   └── checkpoint-462/                   # Best fine-tuned RoBERTa weights
-│   │   ├── errors/                               # Error analysis & case-study CSV exports
-│   │   └── logs/                                 # Timestamped per-run log files
-│   ├── src/
-│   │   ├── config.py                             # Frozen dataclass configuration
-│   │   ├── data_handler.py                       # Data loading & preprocessing
-│   │   ├── evaluator_prompting.py                # Zero-shot FLAN-T5 evaluator
-│   │   ├── evaluator_finetuning.py               # RoBERTa fine-tuning & evaluation
-│   │   ├── hallucination_evaluator.py            # Hallucination detection evaluator
-│   │   ├── error_analysis.py                     # Misclassification extractor
-│   │   └── utils.py                              # Device probing, logging, seed
-│   ├── main.py                                   # Global CLI entry point
-│   ├── requirements.txt                          # Python dependencies
-│   └── README.md                                 # Module-level task description
-├── README.md                                     # ← This document
+├── data/
+│   ├── raw/
+│   │   ├── dev_matched_sampled-1.jsonl      # MultiNLI matched subset (2 500 ex.)
+│   │   └── dev_mismatched_sampled-1.jsonl   # MultiNLI mismatched subset (2 500 ex.)
+│   └── processed/                            # Reserved for preprocessed artefacts
+├── results/
+│   ├── checkpoints/
+│   │   └── checkpoint-462/                   # Best fine‑tuned RoBERTa weights
+│   ├── errors/                               # Error analysis &amp; case‑study CSV exports
+│   └── logs/                                 # Timestamped per‑run log files
+├── src/
+│   ├── config.py                             # Frozen dataclass configuration
+│   ├── data_handler.py                       # Data loading &amp; preprocessing
+│   ├── evaluator_prompting.py                # Zero‑shot FLAN‑T5 evaluator
+│   ├── evaluator_finetuning.py               # RoBERTa fine‑tuning &amp; evaluation
+│   ├── hallucination_evaluator.py            # Hallucination detection evaluator
+│   ├── error_analysis.py                     # Misclassification extractor
+│   └── utils.py                              # Device probing, logging, seed
+├── main.py                                   # Global CLI entry point
+├── requirements.txt                          # Python dependencies
+├── README.md                                 # ← This document
 └── .gitignore
 ```
 
@@ -75,7 +73,7 @@ source .venv/bin/activate
 ### 2. Install dependencies
 
 ```bash
-pip install -r LMsforNLI/requirements.txt
+pip install -r requirements.txt
 ```
 
 | Package | Version | Purpose |
@@ -102,7 +100,7 @@ The pipeline automatically selects the best available device in the order
 ## Configuration
 
 All hyper-parameters and paths are centralised in
-[`src/config.py`](LMsforNLI/src/config.py) through frozen dataclasses to
+[`src/config.py`](src/config.py) through frozen dataclasses to
 ensure a single source of truth:
 
 | Dataclass | Responsibility |
@@ -181,26 +179,26 @@ Used by `main.py` after each NLI evaluation run.
 
 ## Usage
 
-The entry point is [`LMsforNLI/main.py`](LMsforNLI/main.py), which exposes a
+The entry point is [`main.py`](main.py), which exposes a
 unified CLI with task routing via the `--task` flag.
 
 ### Phase 1 — NLI Evaluation
 
 ```bash
 # Zero-shot prompting on all splits
-python LMsforNLI/main.py --task nli --mode prompting --split both
+python main.py --task nli --mode prompting --split both
 
 # Fine-tune RoBERTa and evaluate on mismatched split
-python LMsforNLI/main.py --task nli --mode finetuning --split mismatched
+python main.py --task nli --mode finetuning --split mismatched
 
 # Run both paradigms (default)
-python LMsforNLI/main.py --task nli --mode all --split both
+python main.py --task nli --mode all --split both
 ```
 
 ### Phase 2 — Hallucination Detection
 
 ```bash
-python LMsforNLI/main.py --task hallucination
+python main.py --task hallucination
 ```
 
 This executes the discriminative (RoBERTa) and generative (FLAN-T5) pipelines
