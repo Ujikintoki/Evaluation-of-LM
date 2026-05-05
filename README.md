@@ -339,7 +339,7 @@ These measures prevent the Apple M2’s unified memory from being exhausted when
 
 ## Academic Context
 
-This pipeline was developed as coursework for **CSIT5520 Natural Language Processing** at The Hong Kong Polytechnic University. It adheres to the project specification’s strict constraint of **zero external API calls** — all models are instantiated and inferenced locally.
+This pipeline was developed as coursework for **CSIT5520 Natural Language Processing** at The Hong Kong University of Science and Technology . It adheres to the project specification’s strict constraint of **zero external API calls** — all models are instantiated and inferenced locally.
 
 ### Hallucination Detection Rationale
 
@@ -353,9 +353,13 @@ Masked Language Models pre‑trained on broad corpora have been shown to acquire
 
 ## References
 
-- Honovich, O., Arie, R., Shaham, U., & Levy, O. (2022). *TRUE: Re-evaluating Factual Consistency Evaluation*. arXiv:2204.04991.
-- Nangia, N., Vania, C., Bhalerao, R., & Bowman, S. R. (2020). *CrowS-Pairs: A Challenge Dataset for Measuring Social Biases in Masked Language Models*. In *Proceedings of EMNLP 2020*.
-- Williams, A., Nangia, N., & Bowman, S. R. (2018). *A Broad-Coverage Challenge Corpus for Sentence Understanding through Inference*. In *Proceedings of NAACL-HLT 2018*.
+## References
+
+- [1] Samuel R. Bowman et al. "A large annotated corpus for learning natural language inference". In: *Proceedings of the 2015 Conference on Empirical Methods in Natural Language Processing*. Lisbon, Portugal: Association for Computational Linguistics, Sept. 2015, pp. 632–642. DOI: 10.18653/v1/D15-1075. URL: https://aclanthology.org/D15-1075.
+- [2] Potsawee Manakul, Adian Liusie, and Mark Gales. "SelfCheckGPT: Zero-Resource Black-Box Hallucination Detection for Generative Large Language Models". In: *Proceedings of the 2023 Conference on Empirical Methods in Natural Language Processing*. 2023, pp. 9004–9017.
+- [3] Moin Nadeem, Anna Bethke, and Siva Reddy. "StereoSet: Measuring stereotypical bias in pre-trained language models". In: *Proceedings of the 59th Annual Meeting of the Association for Computational Linguistics and the 11th International Joint Conference on Natural Language Processing (Volume 1: Long Papers)*. 2021, pp. 5356–5371.
+- [4] Nikita Nangia et al. "CrowS-Pairs: A Challenge Dataset for Measuring Social Biases in Masked Language Models". In: *Proceedings of the 2020 Conference on Empirical Methods in Natural Language Processing (EMNLP)*. 2020, pp. 1953–1967.
+- [5] Adina Williams, Nikita Nangia, and Samuel Bowman. "A Broad-Coverage Challenge Corpus for Sentence Understanding through Inference". In: *Proceedings of the 2018 Conference of the North American Chapter of the Association for Computational Linguistics: Human Language Technologies, Volume 1 (Long Papers)*. New Orleans, Louisiana: Association for Computational Linguistics, 2018, pp. 1112–1122. URL: http://aclweb.org/anthology/N18-1101.
 
 ---
 
