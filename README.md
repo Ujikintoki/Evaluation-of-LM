@@ -250,14 +250,14 @@ The table columns include **Pair ID**, **Sentence Variant** (Stereotype / Anti�
 
 ## Results
 
-### Phase 1 — MultiNLI Accuracy
+### Phase 1 — MultiNLI Evaluation Results
 
-| Model | Matched | Mismatched |
-|---|---|---|
-| FLAN‑T5 (zero‑shot) | — | — |
-| RoBERTa (fine‑tuned) | — | — |
+| Model (Parameters) | Evaluation Paradigm | Matched Acc. (In-domain) | Mismatched Acc. (OOD) | Generalization Gap (Δ) |
+|:---|:---|:---:|:---:|:---:|
+| FLAN-T5-base (~250M) | Zero-shot Prompting | 63.17% | 64.25% | **+1.08%** |
+| RoBERTa-base (~125M) | Full Fine-tuning | 90.08% | 75.41% | **-14.67%** |
 
-*(Values will be populated after running the pipeline.)*
+**Note:** "OOD" denotes Out-of-Domain. The Generalization Gap is calculated as (Mismatched Accuracy - Matched Accuracy). Performance is measured on the filtered MultiNLI development sets (2460 matched, 2464 mismatched).
 
 ### Phase 2 — Hallucination Detection (WikiBio‑GPT3)
 
